@@ -2,6 +2,8 @@
 name = "fdc1004"
 version = "0.1.0"
 edition = "2021"
+description = "Driver for the FDC1004 by Texas Instruments"
+license = "MIT"
 
 [dependencies]
 embedded-hal = "1.0.0"
