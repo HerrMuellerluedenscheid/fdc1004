@@ -5,7 +5,7 @@
 use defmt::Format;
 
 use bitfield_struct::bitfield;
-use embedded_hal::i2c::{Error as I2CError, I2c};
+use embedded_hal::i2c::I2c;
 
 const MEAS1_MSB: u8 = 0x00; // MSB portion of Measurement 1
 const MEAS1_LSB: u8 = 0x01; // LSB portion of Measurement 1
@@ -15,21 +15,17 @@ const MEAS3_MSB: u8 = 0x04; // MSB portion of Measurement 3
 const MEAS3_LSB: u8 = 0x05; // LSB portion of Measurement 3
 const MEAS4_MSB: u8 = 0x06; // MSB portion of Measurement 4
 const MEAS4_LSB: u8 = 0x07; // LSB portion of Measurement 4
-const CONF_MEAS1: u8 = 0x08; // Measurement 1 Configuration
-const CONF_MEAS2: u8 = 0x09; // Measurement 2 Configuration
-const CONF_MEAS3: u8 = 0x0A; // Measurement 3 Configuration
-const CONF_MEAS4: u8 = 0x0B; // Measurement 4 Configuration
 const FDC_CONF: u8 = 0x0C; // Capacitance to Digital Configuration
-const OFFSET_CAL_CIN1: u8 = 0x0D; //  CIN1 Offset Calibration
-const OFFSET_CAL_CIN2: u8 = 0x0E; //  CIN2 Offset Calibration
-const OFFSET_CAL_CIN3: u8 = 0x0F; //  CIN3 Offset Calibration
-const OFFSET_CAL_CIN4: u8 = 0x10; //  CIN4 Offset Calibration
-const GAIN_CAL_CIN1: u8 = 0x11; //  CIN1 Gain Calibration
-const GAIN_CAL_CIN2: u8 = 0x12; //  CIN2 Gain Calibration
-const GAIN_CAL_CIN3: u8 = 0x13; //  CIN3 Gain Calibration
-const GAIN_CAL_CIN4: u8 = 0x14; //  CIN4 Gain Calibration
+                           // const OFFSET_CAL_CIN1: u8 = 0x0D; //  CIN1 Offset Calibration
+                           // const OFFSET_CAL_CIN2: u8 = 0x0E; //  CIN2 Offset Calibration
+                           // const OFFSET_CAL_CIN3: u8 = 0x0F; //  CIN3 Offset Calibration
+                           // const OFFSET_CAL_CIN4: u8 = 0x10; //  CIN4 Offset Calibration
+                           // const GAIN_CAL_CIN1: u8 = 0x11; //  CIN1 Gain Calibration
+                           // const GAIN_CAL_CIN2: u8 = 0x12; //  CIN2 Gain Calibration
+                           // const GAIN_CAL_CIN3: u8 = 0x13; //  CIN3 Gain Calibration
+                           // const GAIN_CAL_CIN4: u8 = 0x14; //  CIN4 Gain Calibration
 const MANUFACTURER_ID: u8 = 0xFE; // 449 ID of Texas Instruments
-const DEVICE_ID_TI: u8 = 0xFF; // 004 ID of FDC1004 device
+const DEVICE_ID: u8 = 0xFF; // 004 ID of FDC1004 device
 const ADDR: u8 = 80; // I2C device address
 
 #[bitfield(u16, defmt = cfg(feature = "defmt"))]
@@ -45,11 +41,11 @@ pub struct MeasurementConfiguration {
 }
 
 #[repr(u8)]
-pub enum Measurement {
-    CONF_MEAS1,
-    CONF_MEAS2,
-    CONF_MEAS3,
-    CONF_MEAS4,
+pub enum ConfigureMeasurement {
+    Measurement1 = 0x08,
+    Measurement2 = 0x09,
+    Measurement3 = 0x0A,
+    Measurement4 = 0x0B,
 }
 
 #[repr(u8)]
@@ -95,7 +91,7 @@ pub struct FDCConfiguration {
     #[bits(1)]
     __: u8,
     #[bits(2)]
-    pub rate: u8,
+    pub rate: u8, // 1: 100 SPS, 2: 200 SPS, 3: 400 SPS
 
     #[bits(3)]
     __: u8,
@@ -125,7 +121,7 @@ impl<T: I2c> FDC1004<T> {
     pub fn configure_measurement(
         &mut self,
         config: MeasurementConfiguration,
-        measurement: Measurement,
+        measurement: ConfigureMeasurement,
     ) {
         let [config_msb, config_lsb] = config.into_bits().to_be_bytes();
         self.i2c
@@ -158,5 +154,23 @@ impl<T: I2c> FDC1004<T> {
 
     pub fn read_measurement_4(&mut self) -> u32 {
         self.read_measurement(MEAS4_MSB, MEAS4_LSB)
+    }
+
+    /// Read the manufacturer id. Should be 21577 (=0x5449)
+    pub fn manufacturer_id(&mut self) -> u16 {
+        let mut buffer: [u8; 2] = [0; 2];
+        self.i2c
+            .write_read(ADDR, &[MANUFACTURER_ID], &mut buffer)
+            .unwrap();
+        u16::from_be_bytes(buffer)
+    }
+
+    /// Read the device id. Should be 4100 (=0x1004)
+    pub fn device_id(&mut self) -> u16 {
+        let mut buffer: [u8; 2] = [0; 2];
+        self.i2c
+            .write_read(ADDR, &[DEVICE_ID], &mut buffer)
+            .unwrap();
+        u16::from_be_bytes(buffer)
     }
 }

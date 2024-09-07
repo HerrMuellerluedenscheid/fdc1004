@@ -13,5 +13,3 @@ bitfield-struct = "0.8.0"
 
 [features]
 defmt = ["dep:defmt"]
-
-
